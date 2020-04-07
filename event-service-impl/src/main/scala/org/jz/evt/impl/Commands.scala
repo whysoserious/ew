@@ -1,24 +1,15 @@
-package org.jz.evt.api
+package org.jz.evt.impl
 
-import akka.actor.typed.ActorRef
-
+import java.time.ZonedDateTime
 import java.util.UUID
 
-import play.api.libs.json.Format
-import play.api.libs.json.JsResult
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsValue
-import play.api.libs.json.Json
-import play.api.libs.json.Reads
-import play.api.libs.json.Writes
-import java.time.ZonedDateTime
+import akka.actor.typed.ActorRef
 import org.jz.evt.impl.CommandResponses._
 
 trait EvtCommandSerializable
 
 object Commands {
 
-  // Commands
   sealed trait EvtCommand extends EvtCommandSerializable
 
   final case class Create(
@@ -37,13 +28,13 @@ object Commands {
       replyTo: ActorRef[ReservationCreatedResponse]
   ) extends EvtCommand
 
-//  final case class ExtendReservationTime(
-//      id: UUID,
-//      evtId: UUID,
-//      newReservationTime: ZonedDateTime,
-//      replyTo: ActorRef[Nothing]
-//  ) extends EvtCommand
-//
-//  final case class CancelReservation(id: UUID, evtId: UUID, replyTo: ActorRef[Nothing]) extends EvtCommand
+  final case class ExtendReservationTime(
+      id: UUID,
+      evtId: UUID,
+      newReservationTime: ZonedDateTime,
+      replyTo: ActorRef[Nothing]
+  ) extends EvtCommand
+
+  final case class CancelReservation(id: UUID, evtId: UUID, replyTo: ActorRef[Nothing]) extends EvtCommand
 
 }

@@ -3,35 +3,69 @@ package org.jz.evt.impl
 import akka.Done
 import akka.persistence.query.NoOffset
 import akka.persistence.query.Offset
-
 import com.lightbend.lagom.scaladsl.persistence.AggregateEventTag
-
 import java.util.UUID
 
-import org.jz.evt.api.Events._
+import Events._
 import org.jz.evt.api.EvtView
+import org.jz.evt.api.ReservationView
 
 import scala.concurrent.Future
 
-object EvtViewRepository {
+import akka.Done
+import org.jz.evt.impl.Events.{EvtCreatedEvent}
+import slick.dbio.{DBIO, Effect}
+import slick.jdbc.PostgresProfile.api._
+import slick.sql.FixedSqlAction
 
-  private var catalog = Map.empty[UUID, EvtView]
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
-  def createTables(): Future[Done] =
-    Future.successful(Done)
+class EvtViewRepository(database: Database) {
 
-  def loadOffset(tag: AggregateEventTag[EvtEvent]): Future[Offset] =
-    Future.successful(NoOffset)
+  class EvtViewTable(tag: Tag) extends Table[EvtView](tag, "Evt_view") {
+    def evtId = column[UUID]("evt_id", O.PrimaryKey)
 
-  def handleEvent(event: EvtEvent, offset: Offset): Future[Done] = {
-    event match {
-      case EvtCreatedEvent(id, name, availableTickets) =>
-        catalog = catalog + (id -> EvtView(id, name, availableTickets, List.empty))
-    }
-    Future.successful(Done)
+    def name = column[String]("name")
+
+    def availableTickets = column[Int]("available_tickets_cnt")
+
+    def * = (evtId, name, availableTickets) <> ((EvtView.apply _).tupled, EvtView.unapply)
   }
 
-  def getCatalog(evtId: UUID): Option[EvtView] = {
-    catalog.get(evtId)
+  val evtViewTable = TableQuery[EvtViewTable]
+
+  def createTable(): FixedSqlAction[Unit, NoStream, Effect.Schema] = evtViewTable.schema.createIfNotExists
+
+  def findById(EvtId: UUID): Future[Option[EvtView]] =
+    database.run(findByIdQuery(EvtId))
+  
+  def createEvtView(event: EvtCreatedEvent): DBIO[Done] = {
+        findByIdQuery(event.id)
+          .flatMap {
+            case None =>
+              evtViewTable += EvtView(event.id, event.name, event.availableTickets)
+            case _ => DBIO.successful(Done)
+          }
+          .map(_ => Done)
+          .transactionally
+  }
+  
+  def createReservation(event: ReservationCreatedEvent): DBIO[Done] = {
+        findByIdQuery(event.id)
+          .flatMap {
+            case Some(evtView) =>
+              evtViewTable.insertOrUpdate(evtView.copy(availableTickets = evtView.availableTickets + event.ticketsCount))
+            case None => throw new RuntimeException(s"Evt with ID ${event.id} does not exist in read database")
+          }
+          .map(_ => Done)
+          .transactionally
+  }
+
+  private def findByIdQuery(evtId: UUID): DBIO[Option[EvtView]] = {
+    evtViewTable
+      .filter(_.evtId === evtId)
+      .result
+      .headOption
   }
 }

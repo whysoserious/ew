@@ -6,40 +6,32 @@ import akka.Done
 import akka.NotUsed
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.sharding.typed.scaladsl.EntityRef
+import akka.util.Timeout
 import com.lightbend.lagom.scaladsl.api.ServiceCall
+import com.lightbend.lagom.scaladsl.api.transport.BadRequest
+import com.lightbend.lagom.scaladsl.api.transport.NotFound
 import com.lightbend.lagom.scaladsl.persistence.PersistentEntityRegistry
+import CommandResponses._
+import Commands._
+import org.jz.evt.api._
+import org.jz.user.api.Quantity
+import org.jz.user.api.UserService
+import org.jz.user.api.UserView
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import akka.util.Timeout
-
-import com.lightbend.lagom.scaladsl.api.transport.BadRequest
-import org.jz.evt.api.EvtData
-import org.jz.evt.api.EvtViewResult
-import org.jz.evt.api.ReservationData
-import org.jz.evt.api.ReservationViewResult
-import org.jz.evt.api.ReservationTime
-import org.jz.evt.api.Commands._
-import org.jz.evt.api.CommandResponses._
-import org.jz.evt.api.EvtService
-import org.jz.evt.api.EvtView
-import akka.cluster.ddata.protobuf.msg.ReplicatorMessages.NotFoundOrBuilder
-import com.lightbend.lagom.scaladsl.api.transport.NotFound
-import org.jz.user.api.UserService
-import org.jz.evt.api.ReservationView
-import org.jz.evt.api.Events.ReservationCreatedEvent
-import org.jz.user.api.UserView
 
 class EvtServiceImpl(
     clusterSharding: ClusterSharding,
     persistentEntityRegistry: PersistentEntityRegistry,
-    userService: UserService
+    userService: UserService,
+    evtViewRepository: EvtViewRepository
 )(implicit ec: ExecutionContext)
     extends EvtService {
 
   private def aggregateRef(id: UUID): EntityRef[EvtCommand] =
-    clusterSharding.entityRefFor(EvtState.typeKey, id.toString)
+    clusterSharding.entityRefFor(EvtAggregate.typeKey, id.toString)
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
@@ -48,26 +40,23 @@ class EvtServiceImpl(
       evtCreatedResponse <- cmdCreateEvt(evtData)
     } yield {
       evtCreatedResponse match {
-        case EvtCreated(id, name, availableTickets) => EvtView(id, name, availableTickets, List.empty)
+        case EvtCreated(id, name, availableTickets) => EvtView(id, name, availableTickets)
         case Rejected(reason)                       => throw BadRequest(reason)
       }
     }
   }
 
   def getEvt(evtId: UUID): ServiceCall[NotUsed, EvtView] = ServiceCall { _ =>
-    Future {
-      EvtViewRepository.getCatalog(evtId) match {
-        case Some(evtView) => evtView
-        case None          => throw NotFound(s"Event with id $evtId does not exist")
-      }
+    evtViewRepository.findById(evtId).map {
+      case Some(evtView) => evtView
+      case None          => throw NotFound(s"Event with id $evtId does not exist")
     }
   }
 
-  // TODO Reservations should sit in a separate service
   def createReservation(evtId: UUID): ServiceCall[ReservationData, ReservationView] = ServiceCall { reservationData =>
     for {
-      userView                   <- getUser(reservationData.userId)
-      reservationCreatedResponse <- cmdCreateReservation(evtId, userView.id, reservationData)
+      _                          <- userService.addTickets(reservationData.userId).invoke(Quantity(reservationData.ticketsCnt))
+      reservationCreatedResponse <- cmdCreateReservation(evtId, reservationData.userId, reservationData)
     } yield {
       reservationCreatedResponse match {
         case ReservationCreated(_, _, userId, ticketsCount, reservationTime, canceled) =>

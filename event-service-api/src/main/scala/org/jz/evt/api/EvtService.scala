@@ -25,7 +25,7 @@ trait EvtService extends Service {
   /**
    *  Create a new event.
    *
-   *  Example: curl -v -H "Content-Type: application/json" -d '{"name": "Olympics 2021", "availableTickets": 30}' -X POST http://localhost:9000/event
+   *  Example: curl -v -H "Content-Type: application/json" -d '{"name": "Olympics 2021", "availableTickets": 30}' -X POST http://localhost:9000/event | jq .
    *
    */
   def createEvt(): ServiceCall[EvtData, EvtView]
@@ -33,7 +33,7 @@ trait EvtService extends Service {
   /**
    * Get an event.
    *
-   * Example: curl -v http://localhost:9000/event/bd0cc462-286a-4a67-8b53-102196715f96
+   * Example: curl -v http://localhost:9000/event/bd0cc462-286a-4a67-8b53-102196715f96 | jq .
    *
    */
   def getEvt(evtId: UUID): ServiceCall[NotUsed, EvtView]
@@ -45,7 +45,7 @@ trait EvtService extends Service {
    *  curl -v -H "Content-Type: application/json" \
    *    -d '{"userId": "bd0cc462-286a-4a67-8b53-102196715f96", "ticketsCnt": 4, "reservationTime": XXX}' \
    *   -X POST \
-   *   http://localhost:9000/event/bd0cc462-286a-4a67-8b53-102196715f96/reservation
+   *   http://localhost:9000/event/bd0cc462-286a-4a67-8b53-102196715f96/reservation | jq .
    *
    */
   def createReservation(evtId: UUID): ServiceCall[ReservationData, ReservationView]
@@ -96,13 +96,6 @@ object ReservationView {
 
 final case class ReservationView(userId: UUID, ticketsCount: Int, reservationTime: ZonedDateTime, canceled: Boolean)
 
-object ReservationViewResult {
-  implicit val format: Format[ReservationViewResult] = Json.format
-}
-
-// TODO are these Result classes required?
-final case class ReservationViewResult(content: Option[ReservationView])
-
 object EvtView {
   implicit val format: Format[EvtView] = Json.format
 }
@@ -110,13 +103,5 @@ object EvtView {
 final case class EvtView(
     id: UUID,
     name: String,
-    availableTickets: Int,
-    reservations: List[ReservationView]
+    availableTickets: Int
 )
-
-// Remove
-object EvtViewResult {
-  implicit val format: Format[EvtViewResult] = Json.format
-}
-
-final case class EvtViewResult(content: Option[EvtView])

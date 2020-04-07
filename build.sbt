@@ -21,8 +21,7 @@ def dockerSettings = Seq(
 )
 
 lazy val `ticket-service` = (project in file("."))
-  .aggregate(`user-service-api`, `user-service-impl`)
-//  .aggregate(`event-service-api`, `event-service-impl`, `user-service-api`, `user-service-impl`)
+  .aggregate(`event-service-api`, `event-service-impl`, `user-service-api`, `user-service-impl`)
 
 lazy val `user-service-api` = (project in file("user-service-api"))
   .settings(
@@ -60,15 +59,18 @@ lazy val `event-service-impl` = (project in file("event-service-impl"))
   .enablePlugins(LagomScala)
   .settings(
     libraryDependencies ++= Seq(
-      lagomScaladslPersistenceCassandra,
+      akkaDiscoveryKubernetesApi,
+      lagomScaladslAkkaDiscovery,
       lagomScaladslKafkaBroker,
+      lagomScaladslPersistenceJdbc,
       lagomScaladslTestKit,
       macwire,
-      scalaTest
+      postgresDriver,
+      scalaTest,
     )
   )
   .settings(lagomForkedTestSettings)
-  .dependsOn(`event-service-api`)
+  .dependsOn(`event-service-api`, `user-service-api`)
 
 lagomCassandraEnabled in ThisBuild := false
 lagomKafkaEnabled in ThisBuild := false
