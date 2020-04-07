@@ -1,54 +1,33 @@
 package org.jz.user.impl
 
-import akka.actor.typed.Behavior
 import akka.cluster.sharding.typed.scaladsl._
-import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.Effect
-import akka.persistence.typed.scaladsl.EventSourcedBehavior
 import akka.persistence.typed.scaladsl.ReplyEffect
-
-import com.lightbend.lagom.scaladsl.persistence.AkkaTaggerAdapter
-import com.lightbend.lagom.scaladsl.playjson.JsonSerializer
-import com.lightbend.lagom.scaladsl.playjson.JsonSerializerRegistry
-
-import java.util.UUID
-
-import org.jz.user.api.Commands._
-import org.jz.user.api.Events._
-
+import Commands._
+import Events._
+import org.jz.user.impl.CommandResponses.Accepted
+import org.jz.user.impl.CommandResponses.Rejected
+import org.jz.user.impl.CommandResponses.UserCreated
 import play.api.libs.json.Format
 import play.api.libs.json.Json
 
-import scala.collection.immutable.Seq
+object UserAggregate {
+  def initial: UserAggregate = UserAggregate(name = "", reservedTicketsCnt = 0, maxReservedTicketsCnt = 10)
 
-object UserBehavior {
+  val typeKey: EntityTypeKey[UserCommand] = EntityTypeKey[UserCommand]("UserAggregate")
 
-  def create(entityContext: EntityContext[UserCommand]): Behavior[UserCommand] = {
-    val persistenceId: PersistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
-    create(persistenceId)
-      .withTagger(
-        AkkaTaggerAdapter.fromLagom(entityContext, UserEvent.Tag)
-      )
-  }
-
-  private[impl] def create(persistenceId: PersistenceId) =
-    EventSourcedBehavior
-      .withEnforcedReplies[UserCommand, UserEvent, UserState](
-        persistenceId = persistenceId,
-        emptyState = UserState.initial,
-        commandHandler = (state, cmd) => state.applyCommand(cmd),
-        eventHandler = (state, evt) => state.applyEvent(evt)
-      )
+  implicit val format: Format[UserAggregate] = Json.format
 }
 
-case class UserState(name: String, reservedTicketsCnt: Int, maxReservedTicketsCnt: Int) {
-  def applyCommand(cmd: UserCommand): ReplyEffect[UserEvent, UserState] =
+case class UserAggregate(name: String, reservedTicketsCnt: Int, maxReservedTicketsCnt: Int) {
+
+  def applyCommand(cmd: UserCommand): ReplyEffect[UserEvent, UserAggregate] =
     cmd match {
       case x: Create                   => onCreate(x)
       case x: AdjustReservedTicketsCnt => onAdjustReservedTicketsCnt(x)
     }
 
-  private def onCreate(cmd: Create): ReplyEffect[UserEvent, UserState] = {
+  private def onCreate(cmd: Create): ReplyEffect[UserEvent, UserAggregate] = {
     Effect
       .persist(UserCreatedEvent(cmd.id, cmd.name, cmd.reservedTicketsCnt, cmd.maxReservedTicketsCnt))
       .thenReply(cmd.replyTo) { _ =>
@@ -56,7 +35,7 @@ case class UserState(name: String, reservedTicketsCnt: Int, maxReservedTicketsCn
       }
   }
 
-  private def onAdjustReservedTicketsCnt(cmd: AdjustReservedTicketsCnt): ReplyEffect[UserEvent, UserState] = {
+  private def onAdjustReservedTicketsCnt(cmd: AdjustReservedTicketsCnt): ReplyEffect[UserEvent, UserAggregate] = {
     val newQuantity = reservedTicketsCnt + cmd.cnt
     if (newQuantity < 0) {
       Effect.reply(cmd.replyTo)(Rejected("Number of reserved tickets cannot be less than 0"))
@@ -71,14 +50,14 @@ case class UserState(name: String, reservedTicketsCnt: Int, maxReservedTicketsCn
     }
   }
 
-  def applyEvent(evt: UserEvent): UserState = {
+  def applyEvent(evt: UserEvent): UserAggregate = {
     evt match {
       case x: UserCreatedEvent                => createUser(x)
-      case x: ReservedTicketsCntAdjustedEvent => adjustReserverdTicketsCnt(x)
+      case x: ReservedTicketsCntAdjustedEvent => adjustReservedTicketsCnt(x)
     }
   }
 
-  private def createUser(evt: UserCreatedEvent): UserState = {
+  private def createUser(evt: UserCreatedEvent): UserAggregate = {
     copy(
       name = evt.name,
       reservedTicketsCnt = evt.reservedTicketsCnt,
@@ -86,27 +65,8 @@ case class UserState(name: String, reservedTicketsCnt: Int, maxReservedTicketsCn
     )
   }
 
-  private def adjustReserverdTicketsCnt(evt: ReservedTicketsCntAdjustedEvent): UserState = {
+  private def adjustReservedTicketsCnt(evt: ReservedTicketsCntAdjustedEvent): UserAggregate = {
     copy(reservedTicketsCnt = reservedTicketsCnt + evt.cnt)
   }
 
-}
-
-object UserState {
-  def initial: UserState = UserState(name = "", reservedTicketsCnt = 0, maxReservedTicketsCnt = 10)
-
-  val typeKey = EntityTypeKey[UserCommand]("UserAggregate")
-
-  implicit val format: Format[UserState] = Json.format
-}
-
-object UserSerializerRegistry extends JsonSerializerRegistry {
-  override def serializers: Seq[JsonSerializer[_]] = Seq(
-    JsonSerializer[UserCreatedEvent],
-    JsonSerializer[ReservedTicketsCntAdjustedEvent],
-    JsonSerializer[UserCreated],
-    JsonSerializer[Confirmation],
-    JsonSerializer[Accepted],
-    JsonSerializer[Rejected]
-  )
 }

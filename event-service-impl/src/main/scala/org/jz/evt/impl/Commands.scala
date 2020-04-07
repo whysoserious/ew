@@ -12,7 +12,7 @@ import play.api.libs.json.Json
 import play.api.libs.json.Reads
 import play.api.libs.json.Writes
 import java.time.ZonedDateTime
-import org.jz.evt.api.CommandResponses._
+import org.jz.evt.impl.CommandResponses._
 
 trait EvtCommandSerializable
 
@@ -37,13 +37,13 @@ object Commands {
       replyTo: ActorRef[ReservationCreatedResponse]
   ) extends EvtCommand
 
-  final case class ExtendReservationTime(
-      id: UUID,
-      evtId: UUID,
-      newReservationTime: ZonedDateTime,
-      replyTo: ActorRef[Nothing]
-  ) extends EvtCommand
-
-  final case class CancelReservation(id: UUID, evtId: UUID, replyTo: ActorRef[Nothing]) extends EvtCommand
+//  final case class ExtendReservationTime(
+//      id: UUID,
+//      evtId: UUID,
+//      newReservationTime: ZonedDateTime,
+//      replyTo: ActorRef[Nothing]
+//  ) extends EvtCommand
+//
+//  final case class CancelReservation(id: UUID, evtId: UUID, replyTo: ActorRef[Nothing]) extends EvtCommand
 
 }

@@ -1,37 +1,29 @@
 package org.jz.user.impl
 
-import akka.Done
-import akka.NotUsed
-import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.cluster.sharding.typed.scaladsl.EntityRef
-import akka.util.Timeout
-
-import com.lightbend.lagom.scaladsl.api.ServiceCall
-import com.lightbend.lagom.scaladsl.api.transport.BadRequest
-import com.lightbend.lagom.scaladsl.persistence.PersistentEntityRegistry
-
 import java.util.UUID
 
-import org.jz.user.api.Commands._
-import org.jz.user.api.Quantity
-import org.jz.user.api.UserData
-import org.jz.user.api.UserService
-import org.jz.user.api.UserView
-import org.jz.user.api.UserViewResult
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
+import akka.util.Timeout
+import akka.{Done, NotUsed}
+import com.lightbend.lagom.scaladsl.api.ServiceCall
+import com.lightbend.lagom.scaladsl.api.transport.{BadRequest, NotFound}
+import com.lightbend.lagom.scaladsl.persistence.PersistentEntityRegistry
+import org.jz.user.api.{Quantity, UserData, UserService, UserView}
+import org.jz.user.impl.CommandResponses.{Accepted, Confirmation, Rejected, UserCreated}
+import org.jz.user.impl.Commands._
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 import scala.concurrent.duration._
-import com.lightbend.lagom.scaladsl.api.transport.NotFound
 
 class UserServiceImpl(
     clusterSharding: ClusterSharding,
-    persistentEntityRegistry: PersistentEntityRegistry
+    persistentEntityRegistry: PersistentEntityRegistry,
+    userViewRepository: UserViewRepository
 )(implicit ec: ExecutionContext)
     extends UserService {
 
   private def aggregateRef(id: UUID): EntityRef[UserCommand] =
-    clusterSharding.entityRefFor(UserState.typeKey, id.toString)
+    clusterSharding.entityRefFor(UserAggregate.typeKey, id.toString)
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
@@ -57,12 +49,11 @@ class UserServiceImpl(
   }
 
   override def getUser(userId: UUID): ServiceCall[NotUsed, UserView] = ServiceCall { _ =>
-    Future {
-      UserViewRepository.getCatalog(userId) match {
-        case Some(userView) => userView
-        case None           => throw NotFound(s"User with id $userId does not exist")
-      }
+    userViewRepository.findById(userId).map {
+      case Some(userView) => userView
+      case None           => throw NotFound(s"User with id $userId does not exist")
     }
+
   }
 
 }
