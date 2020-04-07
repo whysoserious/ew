@@ -24,6 +24,14 @@ After setting up all the requirements, to run the application in dev mode, execu
 sbt runAll
 ```
 
+## Running tests
+
+After setting up all the requirements, to run tests, execute the following command:
+
+```bash
+sbt test
+```
+
 ## User service
 
 The user service offers three REST endpoints:
