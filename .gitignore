@@ -15,3 +15,5 @@ project/plugins/project/
 /.scalafmt.conf
 .sbt-hydra-history
 todo.org
+.idea
+*.iml
