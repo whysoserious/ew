@@ -34,6 +34,7 @@ class UserServiceSpec extends AsyncWordSpec with Matchers with ScalaFutures with
 
   override def afterAll(): Unit = server.stop()
 
+  // TODO Sending requests via serviceClient does not update read store
   private val client: UserService               = server.application.serviceClient.implement[UserService]
   private val testDriver: ReadSideTestDriver = server.application.readSide
   private val offset: AtomicInteger = new AtomicInteger()
@@ -66,6 +67,7 @@ class UserServiceSpec extends AsyncWordSpec with Matchers with ScalaFutures with
     }
 
     "throw exception when requested resource does not exist" in {
+      // TODO Nicer syntax?
       val error = recoverToExceptionIf[NotFound] {
         client.getUser(UUID.randomUUID()).invoke(NotUsed)
       }

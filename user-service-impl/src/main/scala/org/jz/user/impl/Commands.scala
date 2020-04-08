@@ -9,6 +9,7 @@ object Commands {
 
   sealed trait UserCommand
 
+  // TODO do we need id here? Maybe it should be generated in the event and returned in a CommandResponse
   final case class Create(
       id: UUID,
       name: String,

@@ -53,6 +53,8 @@ class EvtServiceImpl(
     }
   }
 
+  // TODO function updates state of other service and updates own state afterwards.
+  //  What should happen if a call to createReservation would fail?
   def createReservation(evtId: UUID): ServiceCall[ReservationData, ReservationView] = ServiceCall { reservationData =>
     for {
       _                          <- userService.addTickets(reservationData.userId).invoke(Quantity(reservationData.ticketsCnt))
@@ -74,10 +76,6 @@ class EvtServiceImpl(
     val newEvtId = UUID.randomUUID()
     aggregateRef(newEvtId)
       .ask[EvtCreatedResponse](replyTo => Create(newEvtId, evtData.name, evtData.availableTickets, replyTo))
-  }
-
-  private def getUser(userId: UUID): Future[UserView] = {
-    userService.getUser(userId).invoke()
   }
 
   private def cmdCreateReservation(

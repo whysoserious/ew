@@ -28,6 +28,7 @@ object EvtAggregate {
 
   val typeKey: EntityTypeKey[EvtCommand] = EntityTypeKey[EvtCommand]("EvtAggregate")
 
+  // TODO Can I avoid writing all these mappings in whole project?
   implicit val mapReads: Reads[Map[UUID, Reservation]] = (jv: JsValue) =>
     JsSuccess(jv.as[Map[UUID, Reservation]].map {
       case (k, v) =>
@@ -72,6 +73,8 @@ case class EvtAggregate(
   }
 
   private def onCreateReservation(cmd: CreateReservation): ReplyEffect[EvtEvent, EvtAggregate] = {
+    // TODO this date should be read from the CreateReservation object!
+    // This function has to be pure (think of the situation when all events are replayed)
     val now: ZonedDateTime = ZonedDateTime.now()
     if (cmd.reservationTime.isBefore(now)) {
       Effect.reply(cmd.replyTo)(Rejected("Reservation time cannot be set in past."))

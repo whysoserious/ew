@@ -54,4 +54,5 @@ trait UserServiceComponents
 abstract class UserServiceApplication(context: LagomApplicationContext)
     extends LagomApplication(context)
     with UserServiceComponents
+    // TODO we don't need Kafka in this project :)
     with LagomKafkaComponents

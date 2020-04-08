@@ -37,6 +37,8 @@ class UserServiceImpl(
       )
   }
 
+  // TODO In case of invalid request and Exception is thrown. This is exception is converted to a
+  // HTTP 404 response. Is there more functional way of doing this in Lagom?
   override def addTickets(id: UUID): ServiceCall[Quantity, Done] = ServiceCall { quantity =>
     aggregateRef(id)
       .ask[Confirmation](

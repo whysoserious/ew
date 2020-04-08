@@ -71,3 +71,11 @@ curl -v -H "Content-Type: application/json" \
   http://localhost:9000/event/6e94190b-8d7c-40b2-ac61-9169d46130b4/reservation | jq .
 ```
 
+## Questions
+
+- [ ] Is it worth to run two postgres docker images - one for each service?
+- [ ] How should I store datetimes? ZonedDateTime vs Instant
+- [ ] Is there any support in Lagom for testing services using an HTTP client?
+- [ ] What happens if processing of an event fails?
+- [ ] Review data sent in Commands and Events.
+

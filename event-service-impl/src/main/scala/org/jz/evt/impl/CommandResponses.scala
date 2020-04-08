@@ -79,7 +79,7 @@ object CommandResponses {
   object Rejected {
     implicit val format: Format[Rejected] = Json.format
   }
-
+  
   final case class Rejected(reason: String) extends CommandResponse with EvtCreatedResponse with ReservationCreatedResponse
 
 }
