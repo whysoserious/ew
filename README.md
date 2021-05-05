@@ -16,11 +16,19 @@ docker-compose up -d
 
 Postgres instances will be available on ports `5433` for user service and `5434` for event service and Kafka on port `9092`.
 
+## Testing
+
+```bash
+docker-compose up -d
+sbt test
+```
+
 ## Running in dev mode
 
 After setting up all the requirements, to run the application in dev mode, execute the following command:
 
 ```bash
+docker-compose up -d
 sbt runAll
 ```
 
